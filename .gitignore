@@ -1,0 +1,51 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.o
+*.a
+*.so
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+
+# Logs
+logs/
+*.log
+
+# Workspace
+repos/
+workspace/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+*.out
+
+# Go
+go.sum
+*.mod
+
+# React
+.cache
+.parcel-cache
+
+# Docker
+.docker/

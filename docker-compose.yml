@@ -1,0 +1,93 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cicd-db
+    environment:
+      POSTGRES_USER: cicd
+      POSTGRES_PASSWORD: cicd_password_dev
+      POSTGRES_DB: cicd_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cicd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cicd-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cicd-api
+    environment:
+      DATABASE_URL: postgres://cicd:cicd_password_dev@postgres:5432/cicd_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_secret_key_change_in_production
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./repos:/workspace/repos
+
+  processor:
+    build:
+      context: ./processor
+      dockerfile: Dockerfile
+    container_name: cicd-processor
+    environment:
+      DATABASE_URL: postgres://cicd:cicd_password_dev@postgres:5432/cicd_db
+      REDIS_URL: redis://redis:6379
+      WORKSPACE_PATH: /workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./repos:/workspace/repos
+      - ./logs:/workspace/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cicd-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      REACT_APP_API_URL: http://localhost:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
